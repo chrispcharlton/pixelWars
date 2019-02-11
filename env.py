@@ -1,8 +1,7 @@
 import pygame
 import pandas as pd
 import random
-from pygame.locals import *
-from pixel import Pixel
+from pygame.locals import KEYDOWN, K_ESCAPE, QUIT
 
 
 class Env(object):
@@ -14,9 +13,12 @@ class Env(object):
         self.screen = pygame.display.set_mode((self.x, self.y))
         self.background = pygame.Surface(self.screen.get_size())
         self.background.fill(colour_rgb_code)
+        self.screen_array = pygame.surfarray.array2d(self.screen)
         self.all_sprites = pygame.sprite.Group()
+        self.team_templates = []
         self.teams = {}
         self.record = record
+
 
     def choose_start_position(self, position):
         if type(position) == tuple:
@@ -32,17 +34,21 @@ class Env(object):
             print("Invalid start position (" + str(position) + ")")
             return position
 
-    def spawn_team(self, name="", colour_rgb_code=(0, 0, 0), n=500, position="left", size=4):
+    def add_team(self, team_dict):
+        self.team_templates.append(team_dict)
+
+    def spawn_team(self, team_dict):
         team = pygame.sprite.Group()
-        for i in range(0, (n-1)):
+
+        for i in range(0, (team_dict['n']-1)):
             new_pixel = Pixel(env=self,
-                              team_name=name,
-                              size=size,
-                              colour_rgb_code=colour_rgb_code,
-                              start_position=self.choose_start_position(position))
+                              team_name=team_dict['team_name'],
+                              size=team_dict['size'],
+                              colour_rgb_code=team_dict['colour_rgb_code'],
+                              start_position=self.choose_start_position(team_dict['start_position']))
             team.add(new_pixel)
             self.all_sprites.add(new_pixel)
-        self.teams.update({name: team})
+        self.teams.update({team_dict['team_name']: team})
         return team
 
     def update_enemy_groups(self):
@@ -52,56 +58,79 @@ class Env(object):
     def check_for_game_end(self):
         for team_name in self.teams.keys():
             if len(self.teams[team_name].sprites()) == 0:
-                running = False
                 print(team_name + " has been eliminated")
-                return running
-        running = True
-        return running
+                return True
+        return False
 
     def check_for_exit_key(self):
+        # TODO: currently exit keys not working
         for event in pygame.event.get():
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
-                    return False
+                    pygame.close()
             elif event.type == QUIT:
-                return False
-        return True
+                pygame.close()
+        return False
 
     def update_screen(self):
         self.screen.blit(self.background, (0, 0))
-        self.all_sprites.update()
         for entity in self.all_sprites:
             self.screen.blit(entity.surf, entity.rect)
+        self.screen_array = pygame.surfarray.array2d(self.screen)
         pygame.display.flip()
 
-    def game_loop(self):
-        running = self.check_for_exit_key()
-        if not running:
-            return running
-        running = self.check_for_game_end()
-        if not running:
-            return running
-        self.update_screen()
-        return running
+    def is_done(self):
+        condition_1 = self.check_for_exit_key()
+        condition_2 = self.check_for_game_end()
+        if (condition_1) or (condition_2):
+            return True
+        else:
+            return False
+
+    def step(self, agent, action):
+        agent.update(action)
+
+        state = list(self.screen_array)
+        done = self.is_done()
+        reward = 0
+        info = []
+
+        return state, reward, done, info
 
     def record_game_actions(self):
         #TODO: function to combine action records of each Pixel and sav as a file so the game can be replayed
         pass
 
-    def run(self):
+    def reset(self):
+        self.teams = {}
+        for team in self.team_templates:
+            self.spawn_team(team)
         self.update_enemy_groups()
-        running = True
-        while running:
-            running = self.game_loop()
+
+    def close(self):
         pygame.quit()
-        if self.record:
-            self.record_game_actions()
 
 if (__name__ == '__main__') | (__name__ == 'builtins'):
 
     env = Env(400, 400)
+    env.add_team({'team_name': "red",
+                        'n': 250,
+                        'colour_rgb_code': (255, 0, 0),
+                        'start_position': "left",
+                        'size': 8})
 
-    red = env.spawn_team("red", (255, 0, 0), position="left", n=250, size=8)
-    blue = env.spawn_team("blue", (0, 0, 255), position="right", n=250, size=8)
+    env.add_team({'team_name': "blue",
+                        'n': 250,
+                        'colour_rgb_code': (0, 0, 255),
+                        'start_position': "right",
+                        'size': 8})
 
-    env.run()
+    done = False
+    env.reset()
+    while not done:
+        for pixel in env.all_sprites:
+            action = pixel.choose_action()
+            state, reward, done, info = env.step(pixel, action)
+        env.update_screen()
+    env.close()
+

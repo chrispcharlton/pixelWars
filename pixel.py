@@ -55,12 +55,10 @@ class Pixel(pygame.sprite.Sprite):
             self.rect.bottom = self.y_max
 
     def check_collision(self, type='all'):
-        # Check for collision
         if type == 'enemy':
             group_to_check = self.enemy_team
         else:
             group_to_check = self.env.all_sprites
-
         collided_pixel = pygame.sprite.spritecollideany(self, group_to_check, collided=None)
         return collided_pixel
 
@@ -115,38 +113,29 @@ class Pixel(pygame.sprite.Sprite):
         # maps action names to functions with inputs
         if choice == "rotateLeft":
             self.direction = (-1,0)
-            return
         if choice == "rotateRight":
             self.direction = (1, 0)
-            return
         if choice == "rotateUp":
             self.direction = (0, -1)
-            return
         if choice == "rotateDown":
             self.direction = (0, 1)
-            return
         if choice == "move":
             x = self.direction[0] * self.speed
             y = self.direction[1] * self.speed
             self.move_forward(x, y)
-            return
         if choice == "attack":
             self.attack()
-            return
-        else:
-            print("choice ("+str(choice)+") outside of action handlers")
-            return
 
     def check_death(self):
         if self.hp <= 0:
-            print(str(self.team)+" pixel has died")
+            print(str(self.team), "pixel has died")
             self.kill()
 
-    def update(self):
+    def update(self, action):
         self.check_death()
-        choice = self.choose_action()
+        # action = self.choose_action()
         if self.env.record:
-            self.record_action(choice)
-        self.do_action(choice)
+            self.record_action(action)
+        self.do_action(action)
         self.check_boundaries()
 
