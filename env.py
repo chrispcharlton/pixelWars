@@ -1,6 +1,7 @@
 import pygame
 import pandas as pd
 import random
+from pixel import Pixel
 from pygame.locals import KEYDOWN, K_ESCAPE, QUIT
 
 
@@ -67,9 +68,9 @@ class Env(object):
         for event in pygame.event.get():
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
-                    pygame.close()
+                    pygame.quit()
             elif event.type == QUIT:
-                pygame.close()
+                pygame.quit()
         return False
 
     def update_screen(self):
@@ -90,7 +91,7 @@ class Env(object):
     def step(self, agent, action):
         agent.update(action)
 
-        state = list(self.screen_array)
+        state = self.screen_array
         done = self.is_done()
         reward = 0
         info = []
